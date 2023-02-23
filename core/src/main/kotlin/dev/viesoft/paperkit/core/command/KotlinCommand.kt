@@ -10,6 +10,15 @@ import org.bukkit.command.CommandSender
 import org.bukkit.command.SimpleCommandMap
 import org.bukkit.entity.Player
 
+/**
+ * Kotlin implementation of the [Command] class.
+ * @param plugin The plugin that owns this command.
+ * @param name The name of the command.
+ * @param description The description of the command.
+ * @param usageMessage The usage message of the command.
+ * @param aliases The aliases of the command.
+ * @see dev.viesoft.paperkit.core.command.command
+ */
 abstract class KotlinCommand(
     protected val plugin: IKotlinPlugin,
     name: String,
@@ -28,7 +37,14 @@ abstract class KotlinCommand(
         return isSuccessful
     }
 
-    abstract suspend fun execute(sender: CommandSender, label: String, args: List<String>): Boolean
+    /**
+     * Executes the command, returning its success.
+     * @param sender Source of the command.
+     * @param alias Alias of the command which was used.
+     * @param args Passed command arguments.
+     * @return true if the command was successful, otherwise false.
+     */
+    abstract suspend fun execute(sender: CommandSender, alias: String, args: List<String>): Boolean
 
     final override fun tabComplete(
         sender: CommandSender,
@@ -43,6 +59,13 @@ abstract class KotlinCommand(
         return tabComplete ?: defaultTabComplete(sender, argsList)
     }
 
+    /**
+     * Requests a list of possible completions for a command argument.
+     * @param sender Source of the command.
+     * @param alias Alias of the command which was used.
+     * @param args The arguments passed to the command, including final partial argument to be completed and command label.
+     * @return List of possible completions for the final argument.
+     */
     protected open suspend fun tabComplete(
         sender: CommandSender,
         alias: String,
@@ -81,6 +104,10 @@ abstract class KotlinCommand(
         }.map { it.name }.sortedWith(String.CASE_INSENSITIVE_ORDER)
     }
 
+    /**
+     * Registers this command to the server.
+     * @return true if the command was successfully registered, otherwise false.
+     */
     fun register(): Boolean {
         val isSuccessful = server.commandMap.register(plugin.name, this)
         if (isSuccessful) {
@@ -89,6 +116,10 @@ abstract class KotlinCommand(
         return isSuccessful
     }
 
+    /**
+     * Unregisters this command from the server.
+     * @return true if the command was successfully unregistered, otherwise false.
+     */
     fun unregister(): Boolean {
         val simpleCommandMap = server.commandMap as? SimpleCommandMap ?: return false
         val knownCommands = simpleCommandMap.knownCommands

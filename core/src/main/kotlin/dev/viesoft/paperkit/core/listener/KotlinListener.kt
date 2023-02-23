@@ -9,112 +9,107 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.HandlerList
 import org.bukkit.event.Listener
 import org.bukkit.plugin.AuthorNagException
-import org.bukkit.plugin.IllegalPluginAccessException
 import org.bukkit.plugin.PluginManager
 import org.bukkit.plugin.RegisteredListener
 import java.lang.Deprecated
-import java.lang.reflect.Method
-import kotlin.Any
-import kotlin.Suppress
-import kotlin.apply
-import kotlin.getOrElse
-import kotlin.reflect.jvm.jvmName
-import kotlin.run
-import kotlin.runCatching
+import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
+import kotlin.reflect.full.*
+import kotlin.reflect.jvm.isAccessible
 
-private val Method.eventHandlerAnnotation: EventHandler? get() = getAnnotation(EventHandler::class.java)
-
-private val Any.eventMethods: Set<Method>
-    get() = mutableListOf<Method>().apply {
-        addAll(this@eventMethods.javaClass.methods)
-        addAll(this@eventMethods.javaClass.declaredMethods)
-    }.filter { !it.isBridge && !it.isSynthetic }.toSet()
-
-private val Method.eventClass: Class<out Event>?
-    get() = runCatching {
-        parameterTypes[0].asSubclass(Event::class.java)
-    }.getOrElse { return null }
-
-private fun KotlinListener.listeners(plugin: IKotlinPlugin): Map<Class<out Event>, MutableSet<RegisteredListener>> {
-    val eventMethods = eventMethods
-    val listeners = mutableMapOf<Class<out Event>, MutableSet<RegisteredListener>>()
-
-    fun processListener(method: Method, eventClass: Class<out Event>, eventHandler: EventHandler) {
-        eventClass.logWarnIfDeprecated(method, plugin)
-        val executor = KotlinEventExecutor(eventClass, method, plugin)
-        val listener =
-            RegisteredListener(this, executor, eventHandler.priority, plugin, eventHandler.ignoreCancelled)
-        listeners.computeIfAbsent(eventClass) { mutableSetOf() }.add(listener)
-    }
-
-    eventMethods.forEach { method ->
-        val eventHandler = method.eventHandlerAnnotation ?: return@forEach
-        val eventClass = method.eventClass ?: run {
-            plugin.log.warn {
-                """
-                    Unable to register listener ${method.name} on ${this::class.jvmName}.
-                    Expected single parameter of type ${Event::class.jvmName}.
-                    Actual: ${method.toGenericString()}
-                    
-                    This problem is related to the ${plugin.name} plugin, report to its developers.
-                """
-            }
-            return@forEach
-        }
-        processListener(method, eventClass, eventHandler)
-    }
-    return listeners
-}
-
-private fun Class<*>.logWarnIfDeprecated(method: Method, plugin: IKotlinPlugin) {
-    while (Event::class.java.isAssignableFrom(this)) {
-        if (getAnnotation(Deprecated::class.java) == null) superclass.logWarnIfDeprecated(method, plugin)
-        val warning = getAnnotation(Warning::class.java) ?: return
-        if (!plugin.server.warningState.printFor(warning)) return
-        plugin.log.warn(AuthorNagException(null)) {
-            """
-                Registered listener for Deprecated event $name on method ${method.toGenericString()}.
-                ${warning.reason.ifEmpty { "Server performance will be affected." }}
-                
-                This problem is related to the ${plugin.name} plugin, report to its developers.
-            """
-        }
-    }
-}
-
-private fun PluginManager.getHandlerListFor(event: Class<out Event>): HandlerList {
-    val registrationClass = getRegistrationClass(event)
-    val method = registrationClass.getDeclaredMethod("getHandlerList").apply { isAccessible = true }
-    return method(this, event) as HandlerList
-}
-
-private fun getRegistrationClass(clazz: Class<out Event>): Class<out Event> {
-    return try {
-        clazz.getDeclaredMethod("getHandlerList")
-        clazz
-    } catch (e: NoSuchMethodException) {
-        if (clazz.superclass != null && clazz.superclass != Event::class.java
-            && Event::class.java.isAssignableFrom(clazz.superclass)
-        ) {
-            getRegistrationClass(clazz.superclass.asSubclass(Event::class.java))
-        } else {
-            throw IllegalPluginAccessException("Unable to find handler list for event " + clazz.name + ". Static getHandlerList method required!")
-        }
-    }
-}
-
+/**
+ * Kotlin implementation of the [Listener] class.
+ * @see dev.viesoft.paperkit.core.listener.registerListener
+ * @see dev.viesoft.paperkit.core.listener.listener
+ */
 interface KotlinListener : Listener {
 
-    fun register(plugin: IKotlinPlugin) {
+    /**
+     * Registers the [KotlinListener] to the [IKotlinPlugin].
+     */
+    fun register(plugin: IKotlinPlugin) = apply {
         val pluginManager = plugin.server.pluginManager
-        val listeners = listeners(plugin)
+        val listeners = findEventHandlers(plugin)
         listeners.forEach { (clazz, registeredListeners) ->
-            val handlerList = pluginManager.getHandlerListFor(clazz)
+            val handlerList = pluginManager.findHandlerListForEvent(clazz)
             handlerList.registerAll(registeredListeners)
         }
     }
 
-    fun unregister() {
+    /**
+     * Unregisters the [KotlinListener].
+     */
+    fun unregister() = apply {
         HandlerList.unregisterAll(this)
     }
+}
+
+private fun KotlinListener.findEventHandlers(plugin: IKotlinPlugin): Map<KClass<out Event>, MutableSet<RegisteredListener>> {
+    val listeners = mutableMapOf<KClass<out Event>, MutableSet<RegisteredListener>>()
+
+    fun processListener(function: KFunction<*>, eventClass: KClass<out Event>, eventHandler: EventHandler) {
+        eventClass.logWarnIfDeprecated(function, plugin)
+        val executor = KotlinEventExecutor(eventClass, function, plugin)
+        val listener = RegisteredListener(this, executor, eventHandler.priority, plugin, eventHandler.ignoreCancelled)
+        listeners.computeIfAbsent(eventClass) { mutableSetOf() }.add(listener)
+    }
+
+    this::class.memberFunctions.filter { !it.isExternal && !it.isInline && !it.isOperator }.forEach { function ->
+        val eventHandlerAnnotation = function.findAnnotation<EventHandler>() ?: return@forEach
+        val eventClass = function.singleEventParameterClass()
+        if (eventClass == null) {
+            logWarnInvalidListenerMethod(function, plugin)
+            return@forEach
+        }
+        processListener(function, eventClass, eventHandlerAnnotation)
+    }
+    return listeners
+}
+
+@Suppress("UNCHECKED_CAST")
+private fun KFunction<*>.singleEventParameterClass(): KClass<out Event>? {
+    val singleParam = typeParameters.singleOrNull() ?: return null
+    val singleParamType = singleParam.starProjectedType
+    return if (singleParamType.isSubtypeOf(Event::class.starProjectedType)) {
+        return singleParamType.classifier as? KClass<out Event>
+    } else null
+}
+
+private fun logWarnInvalidListenerMethod(function: KFunction<*>, plugin: IKotlinPlugin) {
+    plugin.log.warn {
+        """
+            Unable to register the listener function $function.
+            Expected single parameter of type inherited from ${Event::class.qualifiedName}.
+        """
+    }
+}
+
+private fun KClass<*>.logWarnIfDeprecated(function: KFunction<*>, plugin: IKotlinPlugin) {
+    if (!isSubclassOf(Event::class)) return
+    if (findAnnotation<Deprecated>() == null) superclasses.forEach { it.logWarnIfDeprecated(function, plugin) }
+    val warning = findAnnotation<Warning>() ?: return
+    if (!plugin.server.warningState.printFor(warning)) return
+    plugin.log.warn(AuthorNagException(null)) {
+        """
+            Registered listener for Deprecated event $simpleName on function $function.
+            ${warning.reason.ifEmpty { "Server performance will be affected." }}
+        """
+    }
+}
+
+private fun PluginManager.findHandlerListForEvent(event: KClass<out Event>): HandlerList {
+    val registrationClass = findRegistrationClass(event)
+    val function = registrationClass.declaredMemberFunctions.find { it.name == "handlerList" }!!
+    function.isAccessible = true
+    return function.call(this, event) as HandlerList
+}
+
+@Suppress("UNCHECKED_CAST")
+private fun findRegistrationClass(kClass: KClass<out Event>): KClass<out Event> {
+    val handlerListFunction = kClass.declaredMemberFunctions.find { it.name == "getHandlerList" }
+    if (handlerListFunction != null) return kClass
+    kClass.superclasses.filter { it.isSubclassOf(Event::class) }.forEach {
+        return findRegistrationClass(it as KClass<out Event>)
+    }
+    error("Unable to find handler list for event ${kClass.qualifiedName}. Static function getHandlerList is required!")
 }

@@ -5,6 +5,9 @@ import mu.KLogger
 import org.bukkit.plugin.Plugin
 import kotlin.coroutines.CoroutineContext
 
+/**
+ * Represents a Kotlin plugin.
+ */
 interface IKotlinPlugin : Plugin {
 
     /**
@@ -40,7 +43,7 @@ interface IKotlinPlugin : Plugin {
     val asyncScope: CoroutineScope
 
     /**
-     * Kotlin style logger for your plugin.
+     * Kotlin fashion logger for your plugin.
      */
     val log: KLogger
 

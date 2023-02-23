@@ -1,7 +1,5 @@
 package dev.viesoft.paperkit.core.plugin
 
-import dev.viesoft.paperkit.core.command.KotlinCommandExecutor
-import dev.viesoft.paperkit.core.command.KotlinTabCompleter
 import dev.viesoft.paperkit.core.coroutines.AsyncPluginDispatcher
 import dev.viesoft.paperkit.core.coroutines.PluginCoroutineController
 import dev.viesoft.paperkit.core.coroutines.PluginDispatcher
@@ -15,7 +13,7 @@ import java.util.concurrent.CancellationException
 import kotlin.coroutines.CoroutineContext
 
 @Suppress("unused")
-abstract class KotlinPlugin : JavaPlugin(), IKotlinPlugin, KotlinCommandExecutor, KotlinTabCompleter {
+abstract class KotlinPlugin : JavaPlugin(), IKotlinPlugin {
 
     private val controller by lazy { PluginCoroutineController(this) }
     private val dispatcher by lazy { PluginDispatcher(this, controller) }
@@ -59,20 +57,13 @@ abstract class KotlinPlugin : JavaPlugin(), IKotlinPlugin, KotlinCommandExecutor
         label: String,
         args: Array<String>
     ): Boolean {
-        var isSuccessful = true
-        scope.launch {
-            isSuccessful = execute(sender, command, label, args.toList())
+        log.warn {
+            """
+                The onCommand method has been called on the $name plugin.
+                The method is final in KotlinPlugin to avoid using the old fashion CommandExecutor.
+                Consider using the KotlinCommand class instead.
+            """.trimIndent()
         }
-        return isSuccessful
-    }
-
-    override suspend fun execute(
-        sender: CommandSender,
-        command: Command,
-        label: String,
-        args: List<String>
-    ): Boolean {
-        log.warn { "${this::class.qualifiedName} set as executor of the $label command, but the method #execute was not implemented." }
         return false
     }
 
@@ -82,20 +73,13 @@ abstract class KotlinPlugin : JavaPlugin(), IKotlinPlugin, KotlinCommandExecutor
         alias: String,
         args: Array<String>
     ): List<String>? {
-        var tabComplete: List<String>? = null
-        scope.launch {
-            tabComplete = tabComplete(sender, command, alias, args.toList())
+        log.warn {
+            """
+                The onTabComplete method has been called on the $name plugin.
+                The method is final in KotlinPlugin to avoid using the old fashion TabCompleter.
+                Consider using the KotlinCommand class instead.
+            """.trimIndent()
         }
-        return tabComplete
-    }
-
-    override suspend fun tabComplete(
-        sender: CommandSender,
-        command: Command,
-        label: String,
-        args: List<String>
-    ): List<String>? {
-        log.warn { "${this::class.qualifiedName} set as executor of the $label command, but the method #tabComplete was not implemented." }
         return null
     }
 

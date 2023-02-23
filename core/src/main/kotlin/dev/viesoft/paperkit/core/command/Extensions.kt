@@ -1,57 +1,101 @@
+@file:Suppress("unused")
+
 package dev.viesoft.paperkit.core.command
 
-import dev.viesoft.paperkit.core.util.expectKotlin
-import kotlinx.coroutines.launch
-import org.bukkit.command.Command
+import dev.viesoft.paperkit.core.plugin.IKotlinPlugin
 import org.bukkit.command.CommandSender
-import org.bukkit.command.PluginCommand
 
-inline fun PluginCommand.setKotlinTabCompleter(
-    crossinline kotlinTabCompleter: suspend (
-        sender: CommandSender,
-        command: Command,
-        label: String,
-        args: List<String>
-    ) -> List<String>
-) = apply {
-    setKotlinTabCompleter(KotlinTabCompleter { sender, command, label, args ->
-        kotlinTabCompleter(sender, command, label, args)
-    })
-}
+typealias TabCompleteFun = suspend (sender: CommandSender, label: String, args: List<String>) -> List<String>
+typealias ExecuteFun = suspend (sender: CommandSender, label: String, args: List<String>) -> Boolean
 
-fun PluginCommand.setKotlinTabCompleter(kotlinTabCompleter: KotlinTabCompleter) = apply {
-    val plugin = plugin.expectKotlin()
+/**
+ * Creates a [KotlinCommand] from the given parameters and registers it to the [IKotlinPlugin].
+ * @param name The name of the command.
+ * @param description The description of the command.
+ * @param usageMessage The usage message of the command.
+ * @param aliases The aliases of the command.
+ * @param execute The execute function of the command.
+ */
+inline fun IKotlinPlugin.registerCommand(
+    name: String,
+    description: String = "",
+    usageMessage: String = "",
+    aliases: List<String> = emptyList(),
+    crossinline execute: ExecuteFun
+) = command(name, description, usageMessage, aliases, execute).register()
 
-    setTabCompleter { sender, command, label, args ->
-        var tabComplete: List<String>? = null
-        plugin.scope.launch {
-            tabComplete = kotlinTabCompleter.tabComplete(sender, command, label, args.toList())
-        }
-        tabComplete
+/**
+ * Creates a [KotlinCommand] from the given parameters.
+ * @param name The name of the command.
+ * @param description The description of the command.
+ * @param usageMessage The usage message of the command.
+ * @param aliases The aliases of the command.
+ * @param execute The execute function of the command.
+ * @see dev.viesoft.paperkit.core.command.registerCommand
+ */
+inline fun IKotlinPlugin.command(
+    name: String,
+    description: String = "",
+    usageMessage: String = "",
+    aliases: List<String> = emptyList(),
+    crossinline execute: ExecuteFun
+): KotlinCommand {
+    return object : KotlinCommand(this, name, description, usageMessage, aliases) {
+        override suspend fun execute(
+            sender: CommandSender,
+            alias: String,
+            args: List<String>
+        ): Boolean = execute(sender, alias, args)
     }
 }
 
-inline fun PluginCommand.setKotlinExecutor(
-    crossinline kotlinCommandExecutor: suspend (
-        sender: CommandSender,
-        command: Command,
-        label: String,
-        args: List<String>
-    ) -> Boolean
-) = apply {
-    setKotlinExecutor(KotlinCommandExecutor { sender, command, label, args ->
-        kotlinCommandExecutor(sender, command, label, args)
-    })
-}
+/**
+ * Creates a [KotlinCommand] from the given parameters and registers it to the [IKotlinPlugin].
+ * @param name The name of the command.
+ * @param description The description of the command.
+ * @param usageMessage The usage message of the command.
+ * @param aliases The aliases of the command.
+ * @param tabComplete The tab complete function of the command.
+ * @param execute The execute function of the command.
+ */
+inline fun IKotlinPlugin.registerCommand(
+    name: String,
+    description: String = "",
+    usageMessage: String = "",
+    aliases: List<String> = emptyList(),
+    crossinline tabComplete: TabCompleteFun = { _, _, _ -> emptyList() },
+    crossinline execute: ExecuteFun,
+) = command(name, description, usageMessage, aliases, tabComplete, execute).register()
 
-fun PluginCommand.setKotlinExecutor(kotlinCommandExecutor: KotlinCommandExecutor) = apply {
-    val plugin = plugin.expectKotlin()
+/**
+ * Creates a [KotlinCommand] from the given parameters.
+ * @param name The name of the command.
+ * @param description The description of the command.
+ * @param usageMessage The usage message of the command.
+ * @param aliases The aliases of the command.
+ * @param tabComplete The tab complete function of the command.
+ * @param execute The execute function of the command.
+ * @see dev.viesoft.paperkit.core.command.registerCommand
+ */
+inline fun IKotlinPlugin.command(
+    name: String,
+    description: String = "",
+    usageMessage: String = "",
+    aliases: List<String> = emptyList(),
+    crossinline tabComplete: TabCompleteFun,
+    crossinline execute: ExecuteFun
+): KotlinCommand {
+    return object : KotlinCommand(this, name, description, usageMessage, aliases) {
+        override suspend fun execute(
+            sender: CommandSender,
+            alias: String,
+            args: List<String>
+        ): Boolean = execute(sender, alias, args)
 
-    setExecutor { sender, command, label, args ->
-        var isSuccessful = false
-        plugin.scope.launch {
-            isSuccessful = kotlinCommandExecutor.execute(sender, command, label, args.toList())
-        }
-        isSuccessful
+        override suspend fun tabComplete(
+            sender: CommandSender,
+            alias: String,
+            args: List<String>
+        ): List<String> = tabComplete(sender, alias, args)
     }
 }

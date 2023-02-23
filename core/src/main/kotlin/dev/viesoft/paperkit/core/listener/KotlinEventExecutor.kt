@@ -6,30 +6,28 @@ import kotlinx.coroutines.launch
 import org.bukkit.event.Event
 import org.bukkit.event.Listener
 import org.bukkit.plugin.EventExecutor
-import java.lang.reflect.Method
+import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspend
-import kotlin.reflect.jvm.jvmName
-import kotlin.reflect.jvm.kotlinFunction
+import kotlin.reflect.full.isSuperclassOf
 
 internal class KotlinEventExecutor(
-    private val eventClass: Class<out Event>,
-    private val methodListener: Method,
+    private val eventClass: KClass<out Event>,
+    private val function: KFunction<*>,
     private val plugin: IKotlinPlugin,
 ) : EventExecutor {
 
     override fun execute(listener: Listener, event: Event) {
-        if (!eventClass.isAssignableFrom(event::class.java)) return
+        if (!event::class.isSuperclassOf(eventClass)) return
         plugin.scope.launch(start = CoroutineStart.UNDISPATCHED) {
             runCatching {
-                if (methodListener.kotlinFunction?.isSuspend == true) {
-                    methodListener.kotlinFunction!!.callSuspend(listener, event)
+                if (function.isSuspend) {
+                    function.callSuspend(listener, event)
                 } else {
-                    methodListener.invoke(listener, event)
+                    function.call(listener, event)
                 }
             }.onFailure {
-                plugin.log.warn(it) {
-                    "Unable to call event listener ${methodListener.toGenericString()} on ${listener::class.jvmName}"
-                }
+                plugin.log.warn(it) { "$function has thrown an exception while processing $event." }
             }
         }
     }
