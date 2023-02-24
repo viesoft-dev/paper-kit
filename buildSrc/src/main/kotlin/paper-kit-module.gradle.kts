@@ -15,7 +15,6 @@ tasks {
     withType<KotlinCompile> {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
-            useK2.set(true)
         }
     }
 
