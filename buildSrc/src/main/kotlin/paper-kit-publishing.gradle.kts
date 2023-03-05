@@ -46,21 +46,21 @@ publishing {
                         url.set("https://opensource.org/license/gpl-3-0/")
                     }
                 }
+            }
 
-                if (!isJitPack) {
-                    repositories {
-                        maven {
-                            url = uri(
-                                if (isSnapshot) {
-                                    SonatypeRepository.snapshotsUrl
-                                } else {
-                                    SonatypeRepository.releasesUrl
-                                }
-                            )
-                            credentials {
-                                username = System.getenv("SONATYPE_USERNAME")
-                                password = System.getenv("SONATYPE_PASSWORD")
+            if (!isJitPack) {
+                repositories {
+                    maven {
+                        url = uri(
+                            if (isSnapshot) {
+                                SonatypeRepository.snapshotsUrl
+                            } else {
+                                SonatypeRepository.releasesUrl
                             }
+                        )
+                        credentials {
+                            username = System.getenv("SONATYPE_USER")
+                            password = System.getenv("SONATYPE_PASSWORD")
                         }
                     }
                 }
