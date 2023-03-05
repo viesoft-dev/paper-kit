@@ -10,7 +10,7 @@ plugins {
 
 publishing {
     publications {
-        create<MavenPublication>("paper-kit") {
+        create<MavenPublication>("paperkit") {
             groupId = project.group.toString()
             artifactId = project.name
             version = ProjectHelper.version
@@ -74,7 +74,7 @@ if (!isJitPack && isRelease) {
         val signingKey = findProperty("signingKey")?.toString()
         val signingPassword = findProperty("signingPassword")?.toString()
         if (signingKey != null && signingPassword != null) {
-            useInMemoryPgpKeys(String(Base64.getDecoder().decode(signingKey)), signingPassword)
+            useInMemoryPgpKeys(signingKey, signingPassword)
         }
         sign(publishing.publications["paper-kit"])
     }
