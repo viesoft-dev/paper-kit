@@ -17,13 +17,21 @@ This is the core module of PaperKit, which contains only the Kotlin implementati
 
 First of all add the dependency to your project:
 
+#### Kotlin
+
 ```kotlin
-dependencies {
-    implementation("dev.viesoft.paperkit", "core", "VERSION")
-}
+implementation("dev.viesoft.paperkit", "core", "VERSION")
 ```
 
-Then you can use the KotlinPlugin class as a base for your plugin:
+##### Groovy
+
+```groovy
+implementation 'dev.viesoft.paperkit:core:VERSION'
+```
+
+Then you can use the Kotlin implementations of the Paper components:
+
+#### KotlinPlugin
 
 ```kotlin
 class MyPlugin : KotlinPlugin() {
@@ -42,3 +50,28 @@ class MyPlugin : KotlinPlugin() {
 }
 ```
 
+#### KotlinCommand
+
+```kotlin
+class ExampleCommand(plugin: IKotlinPlugin) : KotlinCommand(plugin, "example") {
+
+    override suspend fun execute(sender: CommandSender, alias: String, args: List<String>): Boolean {
+        sender.sendMessage("Hello!")
+        return true
+    }
+}
+```
+
+Then in the plugin class:
+
+```kotlin
+private val exampleCommand = ExampleCommand(this)
+
+override suspend fun onEnabled() {
+    exampleCommand.register()
+}
+
+override suspend fun onDisabled() {
+    exampleCommand.unregister()
+}
+```
