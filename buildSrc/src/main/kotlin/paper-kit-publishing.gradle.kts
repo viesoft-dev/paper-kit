@@ -1,17 +1,19 @@
-import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.kotlin.dsl.get
-import org.gradle.kotlin.dsl.repositories
+import ProjectHelper.isJitPack
+import ProjectHelper.isRelease
+import ProjectHelper.isSnapshot
+import java.util.*
 
 plugins {
     `maven-publish`
+    signing
 }
 
 publishing {
     publications {
-        create<MavenPublication>("maven") {
+        create<MavenPublication>("paper-kit") {
             groupId = project.group.toString()
             artifactId = project.name
-            version = project.version.toString()
+            version = ProjectHelper.version
 
             pom {
                 name.set("PaperKit ${project.name.replaceFirstChar { it.uppercase() }}")
@@ -44,7 +46,36 @@ publishing {
                         url.set("https://opensource.org/license/gpl-3-0/")
                     }
                 }
+
+                if (!isJitPack) {
+                    repositories {
+                        maven {
+                            url = uri(
+                                if (isSnapshot) {
+                                    SonatypeRepository.snapshotsUrl
+                                } else {
+                                    SonatypeRepository.releasesUrl
+                                }
+                            )
+                            credentials {
+                                username = System.getenv("SONATYPE_USERNAME")
+                                password = System.getenv("SONATYPE_PASSWORD")
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+if (!isJitPack && isRelease) {
+    signing {
+        val signingKey = findProperty("signingKey")?.toString()
+        val signingPassword = findProperty("signingPassword")?.toString()
+        if (signingKey != null && signingPassword != null) {
+            useInMemoryPgpKeys(String(Base64.getDecoder().decode(signingKey)), signingPassword)
+        }
+        sign(publishing.publications["paper-kit"])
     }
 }
