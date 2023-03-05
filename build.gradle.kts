@@ -1,6 +1,6 @@
 plugins {
     // Could not find the module group and name for shadow.
-    id("com.github.johnrengelman.shadow") version "7.1.2" apply false
+    id("com.github.johnrengelman.shadow") version "8.1.0" apply false
 }
 
 group = "dev.viesoft"
