@@ -18,13 +18,8 @@ This is the core module of PaperKit, which contains only the Kotlin implementati
 First of all add the dependency to your project:
 
 ```kotlin
-repositories {
-    // Required, as the module is not published to Maven Central yet
-    maven("https://jitpack.io")
-}
-
 dependencies {
-    implementation("com.github.viesoft-dev.paper-kit", "core", "VERSION")
+    implementation("dev.viesoft.paperkit", "core", "VERSION")
 }
 ```
 
