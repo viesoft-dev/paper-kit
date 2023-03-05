@@ -74,7 +74,7 @@ if (!isJitPack && isRelease) {
         val signingKey = findProperty("signingKey")?.toString()
         val signingPassword = findProperty("signingPassword")?.toString()
         if (signingKey != null && signingPassword != null) {
-            useInMemoryPgpKeys(signingKey, signingPassword)
+            useInMemoryPgpKeys(String(Base64.getDecoder().decode(signingKey)), signingPassword)
         }
         sign(publishing.publications["paperkit"])
     }
