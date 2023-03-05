@@ -76,6 +76,6 @@ if (!isJitPack && isRelease) {
         if (signingKey != null && signingPassword != null) {
             useInMemoryPgpKeys(signingKey, signingPassword)
         }
-        sign(publishing.publications["paper-kit"])
+        sign(publishing.publications["paperkit"])
     }
 }
