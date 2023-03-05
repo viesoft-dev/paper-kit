@@ -1,6 +1,6 @@
 # PaperKit Core
 
-[![](https://jitpack.io/v/viesoft-dev/paper-kit.svg)](https://jitpack.io/#viesoft-dev/paper-kit)
+[![Download](https://img.shields.io/maven-central/v/dev.viesoft.paperkit/core.svg?label=Maven%20Central&style=for-the-badge)](https://search.maven.org/search?q=g:%22dev.viesoft.paperkit%22%20AND%20a:%22core%22)
 
 This is the core module of PaperKit, which contains only the Kotlin implementations of general Paper components.
 
