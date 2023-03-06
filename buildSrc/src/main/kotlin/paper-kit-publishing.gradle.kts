@@ -1,7 +1,6 @@
 import ProjectHelper.isJitPack
 import ProjectHelper.isRelease
 import ProjectHelper.isSnapshot
-import java.util.*
 
 plugins {
     `maven-publish`
@@ -17,7 +16,7 @@ publishing {
 
             pom {
                 name.set("PaperKit ${project.name.replaceFirstChar { it.uppercase() }}")
-                description.set(project.description)
+                description.set("Set of libraries for Paper plugins development")
                 url.set("https://github.com/viesoft-dev/paper-kit")
 
                 organization {
